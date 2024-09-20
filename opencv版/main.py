@@ -3,6 +3,79 @@ import numpy as np
 import pyautogui
 import pygetwindow as gw
 import math
+import time
+import pytesseract
+from PIL import Image
+import pyautogui
+
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+from pynput import keyboard
+
+# 全局变量来控制程序运行
+running = True
+
+def on_press(key):
+    global running
+    if key == keyboard.KeyCode.from_char('q'):
+        print("检测到 'q' 键被按下，程序即将停止...")
+        running = False
+        return False  # 停止监听
+
+def detect_and_click_button(window):
+    global running
+    
+    # 启动键盘监听
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
+    while running:
+        # 获取窗口的位置
+        left, top = window.left, window.top
+
+        # 直接使用 pyautogui 获取指定区域的文字
+        text = pyautogui.screenshot(region=(left, top, window.width, window.height))
+        
+        # 进行OCR，使用默认配置
+        text = pytesseract.image_to_string(text, lang='chi_tra', config='--psm 6')
+        
+        # 将文字按行分割并去除空白行
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        # 打印检测到的文字
+        print("檢測到的文字:")
+        for i, line in enumerate(lines, 1):
+            print(f"{i}. {line}")
+        
+        # 寻找包含 "积分" 的文字
+        target_word = "積分"
+        
+        if target_word in text:
+            # 找到 "积分"，点击指定坐标
+            x = left + 200
+            y = top + 510
+            print(f"找到 '{target_word}'， ({x}, {y})...")
+            pyautogui.click(x, y)
+            
+            # 进行40秒的连续点击，每0.5秒点击一次
+            print("連續點擊40秒開始...")
+            start_time = time.time()
+            while time.time() - start_time < 40 and running:
+                pyautogui.click(x, y)
+                time.sleep(0.5)
+            
+            if running:
+                print("連續點擊完成")
+            else:
+                print("連續點擊中斷")
+        else:
+            print(f"未找到包含 '{target_word}' 的文字")
+        
+        # 等待1秒后重复过程
+        if running:
+            time.sleep(1)
+
+    print("程式已停止")
+
 
 def detect_objects_in_window(window):
     while True:
@@ -90,26 +163,58 @@ def detect_objects_in_window(window):
 
     cv2.destroyAllWindows()
 
+
+def click_window_center(window):
+    left, top, width, height = window.left, window.top, window.width, window.height
+    center_x = left + width // 2
+    center_y = top + height * 3/4
+
+    print(f"開始點擊視窗 '{window.title}' 的中心。按 'q' 鍵停止。")
+
+    try:
+        while True:
+            # 模擬點擊窗口中心
+            pyautogui.click(center_x, center_y)
+            print(f"點擊位置 ({center_x}, {center_y})")
+
+            # 檢查是否按下 'q' 鍵
+            if keyboard.is_pressed('q'):
+                print("檢測到 'q' 鍵被按下，停止點擊。")
+                break
+
+            # 等待一秒
+            time.sleep(0.1)
+    except Exception as e:
+        print(f"發生錯誤: {e}")
+    finally:
+        print("點擊已停止。")
+
+# 使用示例
+# window = list_and_select_window()  # 假設你有這個函數來選擇窗口
+# click_window_center(window)
+
 def list_and_select_window():
     windows = [win for win in gw.getAllWindows() if win.title]
-    print("当前打开的窗口:")
+    print("當前打開的視窗:")
     for i, window in enumerate(windows, 1):
         print(f"{i}. {window.title}")
     
     while True:
         try:
-            choice = int(input("请选择要检测的窗口编号: "))
+            choice = int(input("請選擇視窗: "))
             if 1 <= choice <= len(windows):
                 return windows[choice - 1]
             else:
-                print("无效的选择，请重试。")
+                print("無效的選擇")
         except ValueError:
-            print("请输入有效的数字。")
+            print("請輸入數字")
 
 def main():
     selected_window = list_and_select_window()
-    print(f"您选择了: {selected_window.title}")
-    detect_objects_in_window(selected_window)
+    print(f"您選了: {selected_window.title}")
+    #detect_objects_in_window(selected_window)
+    #click_window_center(selected_window)
+    detect_and_click_button(selected_window)
 
 if __name__ == "__main__":
     main()
