@@ -47,7 +47,7 @@ def detect_and_click_button(window):
             print(f"{i}. {line}")
         
         # 寻找包含 "积分" 的文字
-        target_word = "積分"
+        target_word = "積"
         
         if target_word in text:
             # 找到 "积分"，点击指定坐标
@@ -57,9 +57,9 @@ def detect_and_click_button(window):
             pyautogui.click(x, y)
             
             # 进行40秒的连续点击，每0.5秒点击一次
-            print("連續點擊40秒開始...")
+            print("連續點擊45秒開始...")
             start_time = time.time()
-            while time.time() - start_time < 40 and running:
+            while time.time() - start_time < 45 and running:
                 pyautogui.click(x, y)
                 time.sleep(0.5)
             
@@ -67,6 +67,9 @@ def detect_and_click_button(window):
                 print("連續點擊完成")
             else:
                 print("連續點擊中斷")
+
+            print("等待555秒")
+            time.sleep(555)
         else:
             print(f"未找到包含 '{target_word}' 的文字")
         

@@ -1,56 +1,70 @@
-# 首先安裝必要的庫
-# !pip install torch torchvision tqdm
-# !git clone https://github.com/ultralytics/yolov5
-
-import torch
-from IPython.display import Image, clear_output
+import pygetwindow as gw
+import numpy as np
+import cv2
+from ultralytics import YOLO
 import os
+import pyautogui
+import time
 
-# 確保使用最新版本的YOLOv5
-os.chdir('yolov5')
-!git pull
-os.chdir('..')
+def list_and_select_window():
+    windows = [win for win in gw.getAllWindows() if win.title]
+    print("當前打開的視窗:")
+    for i, window in enumerate(windows, 1):
+        print(f"{i}. {window.title}")
+    
+    while True:
+        try:
+            choice = int(input("請選擇視窗: "))
+            if 1 <= choice <= len(windows):
+                return windows[choice - 1]
+            else:
+                print("無效的選擇")
+        except ValueError:
+            print("請輸入數字")
 
-# 準備數據集
-# 假設您已經準備好了數據集,並按照YOLOv5的格式組織
-# 數據集結構應該如下:
-# dataset/
-#   images/
-#     train/
-#     val/
-#   labels/
-#     train/
-#     val/
+def capture_window(window):
+    left, top, width, height = window.left, window.top, window.width, window.height
+    screenshot = pyautogui.screenshot(region=(left, top, width, height))
+    frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+    return frame
 
-# 創建數據集配置文件 dataset.yaml
-dataset_config = """
-path: ../dataset  # 數據集根目錄
-train: images/train  # 訓練圖像相對路徑
-val: images/val  # 驗證圖像相對路徑
+def main():
+    model_path = os.path.join(os.getcwd(), 'weights', 'final_model.pt')
+    if not os.path.exists(model_path):
+        print(f"找不到模型文件: {model_path}")
+        return
+    
+    model = YOLO(model_path)
 
-# 類別
-nc: 1  # 類別數量
-names: ['gold_coin']  # 類別名稱
-"""
+    selected_window = list_and_select_window()
+    print(f"您選了: {selected_window.title}")
 
-with open('dataset.yaml', 'w') as f:
-    f.write(dataset_config)
+    print("開始持續檢測。按 'q' 鍵停止。")
 
-# 訓練模型
-!python yolov5/train.py --img 640 --batch 16 --epochs 100 --data dataset.yaml --weights yolov5s.pt
+    while True:
+        image = capture_window(selected_window)
+        results = model(image)
 
-# 在驗證集上進行檢測
-!python yolov5/detect.py --weights runs/train/exp/weights/best.pt --img 640 --conf 0.25 --source dataset/images/val
+        for result in results:
+            boxes = result.boxes.xyxy.cpu().numpy().astype(int)
+            classes = result.boxes.cls.cpu().numpy().astype(int)
+            confidences = result.boxes.conf.cpu().numpy()
 
-# 顯示檢測結果
-Image(filename='runs/detect/exp/image1.jpg', width=600)
+            for box, cls, conf in zip(boxes, classes, confidences):
+                x1, y1, x2, y2 = box
+                label = f"{model.names[cls]} {conf:.2f}"
+                cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-# 使用訓練好的模型進行推理
-def detect_coins(image_path):
-    model = torch.hub.load('ultralytics/yolov5', 'custom', path='runs/train/exp/weights/best.pt')
-    results = model(image_path)
-    results.print()  # 打印檢測結果
-    results.show()  # 顯示帶有邊界框的圖像
+        cv2.imshow("Window Recognition", image)
 
-# 使用示例
-detect_coins('path_to_your_test_image.jpg')
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+        time.sleep(0.01)  # 短暫暫停以減少CPU使用率
+
+    cv2.destroyAllWindows()
+    print("檢測已停止")
+
+if __name__ == "__main__":
+    main()

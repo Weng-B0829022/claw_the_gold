@@ -1,0 +1,10 @@
+names:
+- CLAW
+- GIFT
+- GOLD
+- METEOR
+nc: 4
+path: "C:\\Users\\\u7FC1\\Desktop\\\u6316\u91D1\u7926\\claw_the_gold\\AI\u7248\\moonbix_dataset"
+test: images/test
+train: images/train
+val: images/val
